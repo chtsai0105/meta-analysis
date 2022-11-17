@@ -1,0 +1,14 @@
+*
+.*
+
+!.gitignore
+!README.md
+!LICENSE
+!config.yaml
+!sample.csv
+!snakefile
+
+!data
+!data/.gitkeep
+!logs
+!logs/.gitkeep

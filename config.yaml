@@ -1,0 +1,6 @@
+Metadata: sample.csv
+
+Path:
+  fastq: data/fastq
+  trim_fastq: data/trim_fastq
+  fasta: data/fasta
