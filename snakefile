@@ -66,6 +66,8 @@ rule bbduk_paired:
         R2 = "data/trim_fastq/{acc}_2.fastq.gz"
     params:
         "maq=10 qtrim=rl trimq=6 mlf=0.5 minlen=50"
+    envmodules:
+        "BBMap"
     shell:
         """
         bbduk.sh -Xmx1g in={input.R1} in2={input.R2} out={output.R1} out2={output.R2} {params}
@@ -76,13 +78,34 @@ rule vsearch_mergepairs:
         R1 = lambda wildcards: "data/trim_fastq/{acc}_1.fastq.gz".format(acc=sample_df.loc[(sample_df['Accession'] == wildcards.acc) & (sample_df['Layout'] == 'paired'), 'Accession'].squeeze()),
         R2 = lambda wildcards: "data/trim_fastq/{acc}_2.fastq.gz".format(acc=sample_df.loc[(sample_df['Accession'] == wildcards.acc) & (sample_df['Layout'] == 'paired'), 'Accession'].squeeze())
     output:
-        "data/fasta/{acc}.fasta"
+        merged = temp("data/temp/{acc}_merged.fasta"),
+        notmerged_R1 = temp("data/temp/{acc}_notmerged_R1.fastq"),
+        notmerged_R2 = temp("data/temp/{acc}_notmerged_R2.fastq")
     envmodules:
         "vsearch"
     shell:
         """
-        vsearch --fastq_mergepairs {input.R1} --reverse {input.R2} --fastq_allowmergestagger --fastq_maxdiffpct 10 --fastq_minovlen 10 --fastaout {output}
+        vsearch --fastq_mergepairs {input.R1} --reverse {input.R2} --fastq_allowmergestagger --fastq_maxdiffpct 10 --fastq_minovlen 10 \
+        --fastaout {output.merged} --fastqout_notmerged_fwd {output.notmerged_R1} --fastqout_notmerged_rev {output.notmerged_R2}
         """
+
+rule concat_merged_and_unmerged_pairs:
+    input:
+        merged = rules.vsearch_mergepairs.output.merged,
+        notmerged_R1 = rules.vsearch_mergepairs.output.notmerged_R1,
+        notmerged_R2 = rules.vsearch_mergepairs.output.notmerged_R2,
+    output:
+        "data/fasta/{acc}.fasta"
+    envmodules:
+        "BBMap"
+    shell:
+        """
+        reformat.sh -Xmx2g in={input.notmerged_R1} in2={input.notmerged_R2} out={wildcards.acc}_notmerged_interleaved.fasta
+        awk 'BEGIN{{OFS=FS=" "}}{{if(/^>/){{CUR=$1;{{if(CUR==PRE){{NUM++}}else{{NUM=1}}}};$1="";print CUR"."NUM $0;PRE=CUR}}else{{print $0}}}}' {wildcards.acc}_notmerged_interleaved.fasta > {wildcards.acc}_temp.fasta
+        cat {input.merged} {wildcards.acc}_temp.fasta > {output}
+        rm {wildcards.acc}_notmerged_interleaved.fasta {wildcards.acc}_temp.fasta
+        """
+
 
 rule reformat_to_fasta:
     input:

@@ -8,6 +8,7 @@
 !config.yaml
 !sample.csv
 !snakefile
+!run_snakemake.bash
 
 !data
 !data/.gitkeep
