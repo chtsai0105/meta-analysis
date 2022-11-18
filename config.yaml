@@ -1,6 +1,8 @@
 Metadata: sample.csv
 
 Path:
+  temp: data/temp
   fastq: data/fastq
   trim_fastq: data/trim_fastq
   fasta: data/fasta
+  rrna_prediction: data/rRNA_prediction
