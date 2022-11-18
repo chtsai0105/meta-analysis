@@ -129,11 +129,13 @@ rule barnapp:
         marker_fasta = "{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['rrna_prediction'])
     params:
         lambda wildcards: sample_df.loc[sample_df['Accession'] == wildcards.acc, 'barnnap_key'].squeeze()
+    threads:
+        4
     conda:
         "envs/barrnap.yaml"
     shell:
         """
-        barrnap --kingdom {params} --reject 0.01 --lencutoff 0.01 --outseq {output.marker_fasta} {input}
+        barrnap --threads {threads} --kingdom {params} --reject 0.01 --lencutoff 0.01 --outseq {output.marker_fasta} {input}
         """
 
 rule combine_all_markers:

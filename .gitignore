@@ -12,5 +12,7 @@
 
 !data
 !data/.gitkeep
+!envs
+!envs/*
 !logs
 !logs/.gitkeep
