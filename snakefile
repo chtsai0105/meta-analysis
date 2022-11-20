@@ -149,7 +149,7 @@ rule barnapp:
         "envs/barrnap.yaml"
     shell:
         """
-        barrnap --threads {threads} --kingdom {params} --reject 0.01 --lencutoff 0.01 --outseq {output.marker_fasta} {input}
+        barrnap --threads {threads} --kingdom {params} --reject 0.01 --lencutoff 0.01 --quiet --outseq {output.marker_fasta} {input}
         """
 
 rule combine_all_markers:
