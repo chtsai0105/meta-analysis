@@ -9,8 +9,8 @@ target_list = list()
 # target_list.extend(["{dir}/{acc}_1.fastq.gz".format(dir=path['fastq'], acc=acc) for acc in sample_df.loc[sample_df['Layout'] == 'paired', 'Accession']])
 # target_list.extend(["{dir}/{acc}_2.fastq.gz".format(dir=path['fastq'], acc=acc) for acc in sample_df.loc[sample_df['Layout'] == 'paired', 'Accession']])
 # target_list.extend(["{dir}/{acc}.fasta".format(dir=path['fasta'], acc=acc) for acc in sample_df['Accession']])
-# target_list.extend(["{dir}/{kingdom}/{acc}.fasta".format(dir=path['rrna_prediction'], kingdom=v['Kingdom'], acc=v['Accession']) for _, v in sample_df[['Accession', 'Kingdom']].iterrows()])
-target_list.extend(["{dir}/{kingdom}.fasta".format(dir=path['rrna_prediction'], kingdom=kingdom) for kingdom in sample_df['Kingdom'].unique()])
+target_list.extend(["{dir}/{kingdom}/{acc}.fasta".format(dir=path['rrna_prediction'], kingdom=v['Kingdom'], acc=v['Accession']) for _, v in sample_df[['Accession', 'Kingdom']].iterrows()])
+# target_list.extend(["{dir}/{kingdom}.fasta".format(dir=path['rrna_prediction'], kingdom=kingdom) for kingdom in sample_df['Kingdom'].unique()])
 
 
 wildcard_constraints:
@@ -23,13 +23,13 @@ rule all:
 
 rule parallel_fastq_dump_single:
     output:
-        "{dir}/{{acc}}.fastq.gz".format(dir=path['fastq'])
+        temp("{dir}/{{acc}}.fastq.gz".format(dir=path['fastq']))
     params:
         tmp_dir = path['temp'],
         output_dir = path['fastq'],
         params = ""
     threads:
-        4
+        8
     group:
         "single-end_preprossing"
     envmodules:
@@ -41,8 +41,8 @@ rule parallel_fastq_dump_single:
 
 use rule parallel_fastq_dump_single as parallel_fastq_dump_paired with:
     output:
-        R1 = "{dir}/{{acc}}_1.fastq.gz".format(dir=path['fastq']),
-        R2 = "{dir}/{{acc}}_2.fastq.gz".format(dir=path['fastq'])
+        R1 = temp("{dir}/{{acc}}_1.fastq.gz".format(dir=path['fastq'])),
+        R2 = temp("{dir}/{{acc}}_2.fastq.gz".format(dir=path['fastq']))
     params:
         tmp_dir = path['temp'],
         output_dir = path['fastq'],
@@ -54,7 +54,7 @@ rule bbduk_single:
     input:
         rules.parallel_fastq_dump_single.output
     output:
-        "{dir}/{{acc}}.fastq.gz".format(dir=path['trim_fastq'])
+        temp("{dir}/{{acc}}.fastq.gz".format(dir=path['trim_fastq']))
     params:
         "maq=10 qtrim=rl trimq=6 mlf=0.5 minlen=50"
     group:
@@ -71,8 +71,8 @@ rule bbduk_paired:
         R1 = rules.parallel_fastq_dump_paired.output.R1,
         R2 = rules.parallel_fastq_dump_paired.output.R2
     output:
-        R1 = "{dir}/{{acc}}_1.fastq.gz".format(dir=path['trim_fastq']),
-        R2 = "{dir}/{{acc}}_2.fastq.gz".format(dir=path['trim_fastq'])
+        R1 = temp("{dir}/{{acc}}_1.fastq.gz".format(dir=path['trim_fastq'])),
+        R2 = temp("{dir}/{{acc}}_2.fastq.gz".format(dir=path['trim_fastq']))
     params:
         "maq=10 qtrim=rl trimq=6 mlf=0.5 minlen=50"
     group:
@@ -108,7 +108,7 @@ rule concat_merged_and_unmerged_pairs:
         notmerged_R1 = rules.vsearch_mergepairs.output.notmerged_R1,
         notmerged_R2 = rules.vsearch_mergepairs.output.notmerged_R2,
     output:
-        "{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta'])
+        temp("{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta']))
     group:
         "paired-end_preprossing"
     envmodules:
@@ -125,7 +125,7 @@ rule reformat_to_fasta:
     input:
         lambda wildcards: "data/trim_fastq/{acc}.fastq.gz".format(acc=sample_df.loc[(sample_df['Accession'] == wildcards.acc) & (sample_df['Layout'] == 'single'), 'Accession'].squeeze())
     output:
-        "{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta'])
+        temp("{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta']))
     group:
         "single-end_preprossing"
     envmodules:
