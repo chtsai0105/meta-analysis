@@ -8,7 +8,7 @@ target_list = list()
 # target_list.extend(["{dir}/{acc}.fastq.gz".format(dir=path['fastq'], acc=acc) for acc in sample_df.loc[sample_df['Layout'] == 'single', 'Accession']])
 # target_list.extend(["{dir}/{acc}_1.fastq.gz".format(dir=path['fastq'], acc=acc) for acc in sample_df.loc[sample_df['Layout'] == 'paired', 'Accession']])
 # target_list.extend(["{dir}/{acc}_2.fastq.gz".format(dir=path['fastq'], acc=acc) for acc in sample_df.loc[sample_df['Layout'] == 'paired', 'Accession']])
-# target_list.extend(["{dir}/{acc}.fasta".format(dir=path['fasta'], acc=acc) for acc in sample_df['Accession']])
+# target_list.extend(["{dir}/{kingdom}/{acc}.fasta".format(dir=path['fasta'], kingdom=v['Kingdom'], acc=v['Accession']) for _, v in sample_df[['Accession', 'Kingdom']].iterrows()])
 target_list.extend(["{dir}/{kingdom}/{acc}.fasta".format(dir=path['rrna_prediction'], kingdom=v['Kingdom'], acc=v['Accession']) for _, v in sample_df[['Accession', 'Kingdom']].iterrows()])
 # target_list.extend(["{dir}/{kingdom}.fasta".format(dir=path['rrna_prediction'], kingdom=kingdom) for kingdom in sample_df['Kingdom'].unique()])
 
@@ -125,7 +125,7 @@ rule reformat_to_fasta:
     input:
         lambda wildcards: "data/trim_fastq/{acc}.fastq.gz".format(acc=sample_df.loc[(sample_df['Accession'] == wildcards.acc) & (sample_df['Layout'] == 'single'), 'Accession'].squeeze())
     output:
-        temp("{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta']))
+        "{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta'])
     group:
         "single-end_preprossing"
     envmodules:
@@ -149,7 +149,7 @@ rule barnapp:
         "envs/barrnap.yaml"
     shell:
         """
-        barrnap --threads {threads} --kingdom {params} --reject 0.01 --lencutoff 0.01 --quiet --outseq {output.marker_fasta} {input}
+        barrnap --threads {threads} --kingdom {params} --reject 0.01 --lencutoff 0.01 --quiet --outseq {output.marker_fasta} {input} > /dev/null
         """
 
 rule combine_all_markers:
