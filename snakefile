@@ -125,7 +125,7 @@ rule reformat_to_fasta:
     input:
         lambda wildcards: "data/trim_fastq/{acc}.fastq.gz".format(acc=sample_df.loc[(sample_df['Accession'] == wildcards.acc) & (sample_df['Layout'] == 'single'), 'Accession'].squeeze())
     output:
-        "{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta'])
+        temp("{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta']))
     group:
         "single-end_preprossing"
     envmodules:
