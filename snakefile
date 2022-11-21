@@ -145,11 +145,19 @@ rule barnapp:
         lambda wildcards: sample_df.loc[sample_df['Accession'] == wildcards.acc, 'barnnap_key'].squeeze()
     threads:
         8
+    resources:
+        time="7-00:00:00",
+        mem_mb=lambda wildcards, input, attempt: min(max((input.size // 1000000) * 5 * (1 + attempt * 1), 2000), 50000)
     conda:
         "envs/barrnap.yaml"
     shell:
         """
-        barrnap --threads {threads} --kingdom {params} --reject 0.01 --lencutoff 0.01 --quiet --outseq {output.marker_fasta} {input} > /dev/null
+        if [ -s {input} ]; then
+            barrnap --threads {threads} --kingdom {params} --reject 0.01 --lencutoff 0.01 --quiet --outseq {output.marker_fasta} {input} > /dev/null
+        else
+            echo warning: empty input
+            touch {output.marker_fasta} {output.fai}
+        fi
         """
 
 rule combine_all_markers:
