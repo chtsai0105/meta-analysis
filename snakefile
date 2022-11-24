@@ -32,6 +32,9 @@ rule parallel_fastq_dump_single:
         8
     group:
         "single-end_preprossing"
+    resources:
+        time="1-00:00:00",
+        mem_mb=lambda wildcards, input, attempt: min(max((input.size // 1000000) * (1 + attempt), 2000), 20000)
     envmodules:
         "parallel-fastq-dump"
     shell:
@@ -59,6 +62,9 @@ rule bbduk_single:
         "maq=10 qtrim=rl trimq=6 mlf=0.5 minlen=50"
     group:
         "single-end_preprossing"
+    resources:
+        time="1-00:00:00",
+        mem_mb=lambda wildcards, input, attempt: min(max((input.size // 1000000) * (1 + attempt), 2000), 20000)
     envmodules:
         "BBMap"
     shell:
@@ -77,6 +83,9 @@ rule bbduk_paired:
         "maq=10 qtrim=rl trimq=6 mlf=0.5 minlen=50"
     group:
         "paired-end_preprossing"
+    resources:
+        time="1-00:00:00",
+        mem_mb=lambda wildcards, input, attempt: min(max((input.size // 1000000) * (1 + attempt), 2000), 20000)
     envmodules:
         "BBMap"
     shell:
@@ -94,6 +103,9 @@ rule vsearch_mergepairs:
         notmerged_R2 = temp("{dir}/{{acc}}_notmerged_R2.fastq".format(dir=path['temp']))
     group:
         "paired-end_preprossing"
+    resources:
+        time="1-00:00:00",
+        mem_mb=lambda wildcards, input, attempt: min(max((input.size // 1000000) * (1 + attempt), 2000), 20000)
     envmodules:
         "vsearch"
     shell:
@@ -111,6 +123,9 @@ rule concat_merged_and_unmerged_pairs:
         temp("{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta']))
     group:
         "paired-end_preprossing"
+    resources:
+        time="1-00:00:00",
+        mem_mb=lambda wildcards, input, attempt: min(max((input.size // 1000000) * (1 + attempt), 2000), 20000)
     envmodules:
         "BBMap"
     shell:
@@ -128,6 +143,9 @@ rule reformat_to_fasta:
         temp("{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta']))
     group:
         "single-end_preprossing"
+    resources:
+        time="1-00:00:00",
+        mem_mb=lambda wildcards, input, attempt: min(max((input.size // 1000000) * (1 + attempt), 2000), 20000)
     envmodules:
         "BBMap"
     shell:
