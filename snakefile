@@ -34,7 +34,7 @@ rule parallel_fastq_dump_single:
         "single-end_preprossing"
     resources:
         time="1-00:00:00",
-        mem_mb=lambda wildcards, input, attempt: min(max((input.size // 1000000) * (1 + attempt), 2000), 20000)
+        mem_mb=lambda wildcards, input, attempt: 2500 * (1 + attempt)
     envmodules:
         "parallel-fastq-dump"
     shell:
