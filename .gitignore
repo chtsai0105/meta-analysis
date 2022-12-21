@@ -16,3 +16,5 @@
 !envs/*
 !logs
 !logs/.gitkeep
+!scripts
+!scripts/*
