@@ -14,7 +14,7 @@ target_list.extend(["{dir}/{kingdom}/{acc}.fasta".format(dir=path['rrna_predicti
 
 
 wildcard_constraints:
-    acc = "[a-zA-Z]{3}\d+",
+    acc = "[a-zA-Z]{1,3}\d+",
     kingdom = "Bacteria|Fungi|Eukaryotes"
 
 rule all:
