@@ -69,7 +69,7 @@ rule bbduk_single:
         "BBMap"
     shell:
         """
-        bbduk.sh -Xmx1g in={input} out={output} {params}
+        bbduk.sh -Xmx1g in={input} out={output} {params} && [[ -s {output} ]]
         """
 
 rule bbduk_paired:
@@ -90,7 +90,7 @@ rule bbduk_paired:
         "BBMap"
     shell:
         """
-        bbduk.sh -Xmx1g in={input.R1} in2={input.R2} out={output.R1} out2={output.R2} {params}
+        bbduk.sh -Xmx1g in={input.R1} in2={input.R2} out={output.R1} out2={output.R2} {params} && [[ -s {output.R1} ]] && [[ -s {output.R2} ]]
         """
 
 rule vsearch_mergepairs:
@@ -120,7 +120,9 @@ rule concat_merged_and_unmerged_pairs:
         notmerged_R1 = rules.vsearch_mergepairs.output.notmerged_R1,
         notmerged_R2 = rules.vsearch_mergepairs.output.notmerged_R2,
     output:
-        temp("{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta']))
+        notmerged_interleaved = temp("{dir}/{{kingdom}}/{{acc}}_notmerged_interleaved.fasta".format(dir=path['fasta'])),
+        intermediate = temp("{dir}/{{kingdom}}/{{acc}}_temp.fasta".format(dir=path['fasta'])),
+        concat_fasta = temp("{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta']))
     group:
         "paired-end_preprossing"
     resources:
@@ -130,10 +132,9 @@ rule concat_merged_and_unmerged_pairs:
         "BBMap"
     shell:
         """
-        reformat.sh -Xmx2g in={input.notmerged_R1} in2={input.notmerged_R2} out={wildcards.acc}_notmerged_interleaved.fasta
-        awk 'BEGIN{{OFS=FS=" "}}{{if(/^>/){{CUR=$1;{{if(CUR==PRE){{NUM++}}else{{NUM=1}}}};$1="";print CUR"."NUM $0;PRE=CUR}}else{{print $0}}}}' {wildcards.acc}_notmerged_interleaved.fasta > {wildcards.acc}_temp.fasta
-        cat {input.merged} {wildcards.acc}_temp.fasta > {output}
-        rm -f {wildcards.acc}_notmerged_interleaved.fasta {wildcards.acc}_temp.fasta
+        reformat.sh -Xmx2g in={input.notmerged_R1} in2={input.notmerged_R2} out={output.notmerged_interleaved}
+        awk 'BEGIN{{OFS=FS=" "}}{{if(/^>/){{CUR=$1;{{if(CUR==PRE){{NUM++}}else{{NUM=1}}}};$1="";print CUR"."NUM $0;PRE=CUR}}else{{print $0}}}}' {output.notmerged_interleaved} > {output.intermediate}
+        cat {input.merged} {output.intermediate} > {output.concat_fasta}
         """
 
 rule reformat_to_fasta:
@@ -158,7 +159,7 @@ rule barnapp:
         "{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['fasta'])
     output:
         fai = temp("{dir}/{{kingdom}}/{{acc}}.fasta.fai".format(dir=path['fasta'])),
-        marker_fasta = "{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['rrna_prediction'])
+        marker_fasta = temp("{dir}/{{kingdom}}/temp/{{acc}}.fasta".format(dir=path['rrna_prediction']))
     params:
         lambda wildcards: sample_df.loc[sample_df['Accession'] == wildcards.acc, 'barnnap_key'].squeeze()
     threads:
@@ -170,20 +171,41 @@ rule barnapp:
         "envs/barrnap.yaml"
     shell:
         """
-        if [ -s {input} ]; then
-            barrnap --threads {threads} --kingdom {params} --reject 0.01 --lencutoff 0.01 --quiet --outseq {output.marker_fasta} {input} > /dev/null
-        else
-            echo warning: empty input
-            touch {output.marker_fasta} {output.fai}
-        fi
+        barrnap --threads {threads} --kingdom {params} --reject 0.01 --lencutoff 0.01 --quiet --outseq {output.marker_fasta} {input} > /dev/null
+        """
+
+rule remove_duplicate:
+    input: rules.barnapp.output.marker_fasta
+    output: temp("{dir}/{{kingdom}}/temp/{{acc}}_nodup.fasta".format(dir=path['rrna_prediction']))
+    group:
+        "post-preprossing"
+    conda:
+        "envs/post_process.yaml"
+    shell:
+        """
+        seqkit rmdup -n < {input} > {output}
+        """
+
+rule remove_N:
+    input: rules.remove_duplicate.output
+    output: "{dir}/{{kingdom}}/{{acc}}.fasta".format(dir=path['rrna_prediction'])
+    group:
+        "post-preprossing"
+    conda:
+        "envs/post_process.yaml"
+    shell:
+        """
+        ./scripts/removeNfromfasta.py {input} > {output}
         """
 
 rule combine_all_markers:
     input:
         lambda wildcards: expand("{dir}/{{kingdom}}/{acc}.fasta", dir=path['rrna_prediction'], acc=sample_df.loc[(sample_df['Kingdom'] == wildcards.kingdom), 'Accession'].squeeze())
     output:
-        "{dir}/{{kingdom}}.fasta".format(dir=path['rrna_prediction'])
+        merged_fasta = "{dir}/{{kingdom}}.fasta".format(dir=path['rrna_prediction'])
+    singularity:
+        "envs/micca.simg"
     shell:
         """
-        cat {input} > {output}
+        micca merge -i {input} -o {output.merged_fasta} -f fasta
         """
